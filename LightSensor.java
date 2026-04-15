@@ -19,6 +19,7 @@ public class LightSensor {
         // getRedMode
         SampleProvider light = colorSensor.getRedMode();
         float[] sample = new float[light.sampleSize()];
+        int colorSample = (int)(sample[0] * 100);
 
         while (!Button.ESCAPE.isDown()) {
 
