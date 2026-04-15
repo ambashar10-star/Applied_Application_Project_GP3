@@ -23,28 +23,35 @@ public class LightSensor {
         while (!Button.ESCAPE.isDown()) {
 
             light.fetchSample(sample, 0);
-            int color = (int) sample[0];
+            colorSample = (int)(sample[0] * 100);
 
-            if (color == 7) {
+            if(colorSample < 9) // If it is on the black line
+            {
+                leftMotor.setSpeed(120);
+                rightMotor.setSpeed(100);
                 leftMotor.forward();
                 rightMotor.forward();
-                leftMotor.setSpeed(120);
+            }
+            else if(colorSample == 9) // if it follows the edgr of the line
+            {
+                leftMotor.setSpeed(100);
+                rightMotor.setSpeed(100);
+                leftMotor.forward();
+                rightMotor.forward();
+            }
+            else if(colorSample > 9) // if it is off the line
+            {
+                leftMotor.setSpeed(100);
                 rightMotor.setSpeed(120);
-            } else if (color != 7) {
-                leftMotor.rotate(-90);
-                rightMotor.rotate(90);
-
-                while (rightMotor.isMoving()) {
-                    light.fetchSample(sample, 0);
-                    color = (int) sample[0];
-
-                    if (color == 7) {
-                        leftMotor.forward();
-                        rightMotor.forward();
-                        leftMotor.setSpeed(120);
-                        rightMotor.setSpeed(120);
-                    }
-                }
+                leftMotor.forward();
+                rightMotor.forward();
+            }
+            try 
+            {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
             }
         }
