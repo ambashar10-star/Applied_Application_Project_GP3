@@ -16,8 +16,8 @@ public class LightSensor {
         EV3LargeRegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.B);
         EV3ColorSensor colorSensor = new EV3ColorSensor(SensorPort.S4);
 
-        // Color ID Mode
-        SampleProvider light = colorSensor.getColorIDMode();
+        // getRedMode
+        SampleProvider light = colorSensor.getRedMode();
         float[] sample = new float[light.sampleSize()];
 
         while (!Button.ESCAPE.isDown()) {
