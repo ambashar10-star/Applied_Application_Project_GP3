@@ -54,7 +54,6 @@ public class LightSensor {
                 e.printStackTrace();
             }
 
-            }
         }
         leftMotor.close();
         rightMotor.close();
