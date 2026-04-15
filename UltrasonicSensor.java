@@ -49,7 +49,7 @@ public class UltrasonicSensor {
             rightMotor.forward();
             // //Delay.msDelay(3000); 
 
-            if(sample[0] < 0.4){
+            if(sample[0] < 0.3){
 
                 LCD.clear();
                 LCD.drawString("Dist: " + sample[0] + " meters", 0, 0);
