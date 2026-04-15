@@ -32,7 +32,7 @@ public class UltrasonicSensor {
         float[] sample = new float[distance.sampleSize()];
     
         // Keep displaying the distance, until user presses a button
-         while (true)
+         while (!Button.ESCAPE.isDown())
          {
             // Get the curRent distnce reading from the US sensor
             distance.fetchSample(sample, 0);
