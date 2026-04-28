@@ -75,7 +75,14 @@ class DistanceRunnable implements Runnable {
     }
 }
 
-public class mainWork  {
+/**
+ * Main robot program.
+ * Combines:
+ * - PID line following
+ * - Object detection
+ * - Obstacle bypass and return to line
+ */
+public class FinalWork  {
 
     public static void main(String[] args) {
 
@@ -83,124 +90,232 @@ public class mainWork  {
         EV3LargeRegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.A);
         EV3LargeRegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.B);
 
+        // setup color sensor
+        EV3ColorSensor colorSensor = new EV3ColorSensor(SensorPort.S4);
+        SampleProvider light = colorSensor.getRedMode();
+        
         // setup ultrasonic sensor
         EV3UltrasonicSensor ultrasonicSensor = new EV3UltrasonicSensor(SensorPort.S2);
         SampleProvider distance = ultrasonicSensor.getDistanceMode();
 
-        // setup color sensor
-        EV3ColorSensor colorSensor = new EV3ColorSensor(SensorPort.S4);
-        SampleProvider light = colorSensor.getRedMode();
+        new Thread(new LightRunnable(lightProvider)).start();
+        new Thread(new DistanceRunnable(distProvider)).start();
 
-        // start sensor threads (they run in background)
-        UltrasonicThread uThread = new UltrasonicThread(distance);
-        LightThread lThread = new LightThread(light);
-
-        uThread.start();
-        lThread.start();
+        // PID SETTINGS 
+        double Kp = 4.0; 
+        double Ki = 0.0; 
+        double Kd = 10.0; 
+        double targetValue = 10; 
+        double baseSpeed = 150; 
+        double lastError = 0; 
+        double integral = 0;
 
         // main loop (runs until ESCAPE button is pressed)
         while (!Button.ESCAPE.isDown()) {
 
-            // read latest values from threads
-            float dist = ShareData.dist;
-            int intensity = ShareData.light;
+            float currentDist;
 
-            // display values on screen
-            LCD.clear();
-            LCD.drawString("Dist: " + dist, 0, 0);
-            LCD.drawString("Light: " + intensity, 0, 1);
+            synchronized (ShareData.class) {
+                currentDist = ShareData.distance;
+            }
 
-          
-            if(dist < 0.25){
+            if (currentDist < 0.3 && currentDist > 0) {
 
-                LCD.clear();
-                LCD.drawString("Dist: " + dist + " meters", 0, 0);
-
+                leftMotor.stop(true);
+                rightMotor.stop();
                 Sound.beep();
 
-                // Slow down
-                leftMotor.setSpeed(120);
-                rightMotor.setSpeed(120);
+                //SCAN LEFT
+                rightMotor.resetTachoCount();
+                leftMotor.backward(); 
+                rightMotor.forward();
+
+                while (true) {
+                    synchronized (ShareData.class) {
+                        if (ShareData.distance > 0.6) break;
+                    }
+                }
+
+                leftMotor.stop(true);
+                rightMotor.stop();
+                int leftAngle = rightMotor.getTachoCount();
+
+                leftMotor.rotate(leftAngle, true);
+                rightMotor.rotate(-leftAngle);
+
+                //SCAN RIGHT
+                leftMotor.resetTachoCount(); 
+                leftMotor.forward(); 
+                rightMotor.backward();
+
+                while (true) {
+                    synchronized (ShareData.class) {
+                        if (ShareData.distance > 0.6) break;
+                    }
+                }
+
+                leftMotor.stop(true);
+                rightMotor.stop();
+                int rightAngle = leftMotor.getTachoCount();
+
+                leftMotor.rotate(-rightAngle, true);
+                rightMotor.rotate(rightAngle);
+
+                //BYPASS LOGIC
+                if (leftAngle < rightAngle) {
+
+                    // FRONT BYPASS LOOP (LEFT) 
+                    boolean frontClear = false;
+                    while (!frontClear) {
+
+                        leftMotor.rotate(-leftAngle, true);
+                        rightMotor.rotate(leftAngle);
+
+                        leftMotor.forward();
+                        rightMotor.forward();
+                        Delay.msDelay(3000);
+
+                        leftMotor.stop(true);
+                        rightMotor.stop();
+
+                        leftMotor.rotate(leftAngle, true);
+                        rightMotor.rotate(-leftAngle);
+                        Delay.msDelay(500);
+
+                        synchronized (ShareData.class) {
+                            if (ShareData.distance > 0.6) {
+                                frontClear = true;
+                            }
+                        }
+                    }
+
+                    // SIDE PASSING LOOP (LEFT)
+                    boolean sideClear = false;
+                    while (!sideClear) {
+
+                        leftMotor.forward();
+                        rightMotor.forward();
+                        Delay.msDelay(1000);
+
+                        leftMotor.stop(true);
+                        rightMotor.stop();
+
+                        leftMotor.rotate(180, true);
+                        rightMotor.rotate(-180);
+                        Delay.msDelay(500);
+
+                        synchronized (ShareData.class) {
+                            if (ShareData.distance > 0.6) {
+                                sideClear = true;
+                            } else {
+                                leftMotor.rotate(-180, true);
+                                rightMotor.rotate(180);
+                            }
+                        }
+                    }
+                    
+                    // Return to line 
+                    leftMotor.rotate(-180, true); 
+                    rightMotor.rotate(180);
+
+                    while (true){
+                        if (ShareData.light == targetValue) {
+                        break;
+                        }
+                    }
+                } else {
+
+                    //FRONT BYPASS LOOP (RIGHT)
+                    boolean frontClear = false;
+                    while (!frontClear) {
+
+                        leftMotor.rotate(rightAngle, true);
+                        rightMotor.rotate(-rightAngle);
+
+                        leftMotor.forward();
+                        rightMotor.forward();
+                        Delay.msDelay(3000);
+
+                        leftMotor.stop(true);
+                        rightMotor.stop();
+
+                        leftMotor.rotate(-rightAngle, true);
+                        rightMotor.rotate(rightAngle);
+                        Delay.msDelay(500);
+
+                        synchronized (ShareData.class) {
+                            if (ShareData.distance > 0.6) {
+                                frontClear = true;
+                            }
+                        }
+                    }
+
+                    //SIDE PASSING LOOP (RIGHT)
+                    boolean sideClear = false;
+                    while (!sideClear) {
+
+                        leftMotor.forward();
+                        rightMotor.forward();
+                        Delay.msDelay(1000);
+
+                        leftMotor.stop(true);
+                        rightMotor.stop();
+
+                        leftMotor.rotate(-180, true);
+                        rightMotor.rotate(180);
+                        Delay.msDelay(500);
+
+                        synchronized (ShareData.class) {
+                            if (ShareData.distance > 0.6) {
+                                sideClear = true;
+                            } else {
+                                leftMotor.rotate(180, true);
+                                rightMotor.rotate(-180);
+                            }
+                        }
+                    }
+                    
+                    // Return to line 
+                    leftMotor.rotate(180, true);
+                    rightMotor.rotate(-180);
+
+                    while (true){
+                        if (ShareData.light == targetValue) {
+                        break;
+                        }
+                    }
+                }
+
+            } else {
+
+                //PID LINE FOLLOWING
+                int currentLight;
+
+                synchronized (ShareData.class) {
+                    currentLight = ShareData.light;
+                }
+
+                double error = targetValue - currentLight;
+                integral += error;
+                double derivative = error - lastError;
+
+                double turn = (Kp * error) + (Ki * integral) + (Kd * derivative);
+
+                leftMotor.setSpeed((int)(baseSpeed + turn));
+                rightMotor.setSpeed((int)(baseSpeed - turn));
+
                 leftMotor.forward();
                 rightMotor.forward();
-                Delay.msDelay(300);
 
-                // slightly turn to the right
-                leftMotor.setSpeed(170);
-                rightMotor.setSpeed(100);
-                leftMotor.forward();
-                rightMotor.forward();
-                Delay.msDelay(3000);
-
-                //  MOVE BESIDE OBJECT WHILE MAINTAINING LEFT
-                leftMotor.setSpeed(100);
-                rightMotor.setSpeed(150);
-                leftMotor.forward();
-                rightMotor.forward();
-                Delay.msDelay(3000);
-
-                // move forward again
-                leftMotor.setSpeed(260);
-                rightMotor.setSpeed(260);
-                leftMotor.forward();
-                rightMotor.forward();
-                Delay.msDelay(700);
-
-                // slightly turn to the left again
-                leftMotor.setSpeed(100);
-                rightMotor.setSpeed(170);
-                leftMotor.forward();
-                rightMotor.forward();
-                Delay.msDelay(5000);
-
-                // slightly turn to the left again (to move forward in a straight line)
-                leftMotor.setSpeed(200);
-                rightMotor.setSpeed(100);
-                leftMotor.forward();
-                rightMotor.forward();
-                Delay.msDelay(3000);
-
-                // // Move forward
-                // leftMotor.setSpeed(260);
-                // rightMotor.setSpeed(260);
-                // leftMotor.forward();
-                // rightMotor.forward();
-                // Delay.msDelay(3000);
-                // break;
+                lastError = error;
             }
-            
 
-            
-            // LINE FOLLOWING
-           else if(intensity < 10) // If it is on the black line
-            {
-                leftMotor.setSpeed(100);
-                rightMotor.setSpeed(120);
-                leftMotor.forward();
-                rightMotor.forward();
-            }
-            else if(intensity == 10) // if it follows the edgr of the line
-            {
-                leftMotor.setSpeed(100);
-                rightMotor.setSpeed(100);
-                leftMotor.forward();
-                rightMotor.forward();
-            }
-            else if(intensity > 10) // if it is off the line
-            {
-                leftMotor.setSpeed(120);
-                rightMotor.setSpeed(100);
-                leftMotor.forward();
-                rightMotor.forward();
-            }
-            Delay.msDelay(50); 
+            try { Thread.sleep(10); } catch (Exception e) {}
         }
-    
 
-        // stop threads when program ends
+       
         ShareData.running = false;
 
-        // close hardware
         leftMotor.close();
         rightMotor.close();
         colorSensor.close();
