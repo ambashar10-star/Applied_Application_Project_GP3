@@ -61,48 +61,72 @@ public class LightSensor {
         EV3LargeRegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.A);
         EV3LargeRegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.B);
         EV3ColorSensor colorSensor = new EV3ColorSensor(SensorPort.S4);
-        
-        // getRedMode
         SampleProvider light = colorSensor.getRedMode();
-        float[] sample = new float[light.sampleSize()];
-        int colorSample = (int)(sample[0] * 100);
 
+        // Start Lightsensor thread
+        Thread lightThread = new Thread(new LightRunnable(light));
+        lightThread.start();
+
+        //PID CONSTANTS
+        double Kp = 4.0;   // Proportional gain
+        double Ki = 0.0;   // Integral gain
+        double Kd = 10.0;  // Derivative gain
+        
+        double targetValue = 10; // desired light value (edge of line)
+        double baseSpeed = 150;  // normal speed
+        
+        double lastError = 0;
+        double integral = 0;
+
+        LCD.drawString("PID Following...", 0, 0);
+
+        // Main control loop
         while (!Button.ESCAPE.isDown()) {
 
-            light.fetchSample(sample, 0);
-            colorSample = (int)(sample[0] * 100);
+            int currentLight;
 
-            if(colorSample < 9) // If it is on the black line
-            {
-                leftMotor.setSpeed(120);
-                rightMotor.setSpeed(100);
-                leftMotor.forward();
-                rightMotor.forward();
-            }
-            else if(colorSample == 9) // if it follows the edgr of the line
-            {
-                leftMotor.setSpeed(100);
-                rightMotor.setSpeed(100);
-                leftMotor.forward();
-                rightMotor.forward();
-            }
-            else if(colorSample > 9) // if it is off the line
-            {
-                leftMotor.setSpeed(100);
-                rightMotor.setSpeed(120);
-                leftMotor.forward();
-                rightMotor.forward();
-            }
-            try 
-            {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            // Simple synchronization (lock) when reading shared data
+            synchronized (ShareData.class) {
+                currentLight = ShareData.light;
             }
 
+            // 1. Calculate error
+            double error = targetValue - currentLight;
+            
+            // 2. Integral
+            integral += error;
+            
+            // 3. Derivative
+            double derivative = error - lastError;
+            
+            // 4. PID output
+            double turn = (Kp * error) + (Ki * integral) + (Kd * derivative);
+            
+            // 5. Adjust motor speeds
+            leftMotor.setSpeed((int)(baseSpeed + turn));
+            rightMotor.setSpeed((int)(baseSpeed - turn));
+            
+            leftMotor.forward();
+            rightMotor.forward();
+
+            lastError = error;
+
+            // Display value
+            LCD.clear(1);
+            LCD.drawString("Light: " + currentLight, 0, 1);
+
+            try { Thread.sleep(10); } catch (Exception e) {}
         }
+
+        // Stop thread and motors
+        ShareData.running = false;
+
+        leftMotor.stop(true);
+        rightMotor.stop();
+
+        // Close resources
+        colorSensor.close();
         leftMotor.close();
         rightMotor.close();
-        colorSensor.close();
     }
 }
