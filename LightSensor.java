@@ -9,6 +9,15 @@ import lejos.robotics.Color;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.Button;
 
+/**
+ * Shared data class used for communication between threads.
+ * Stores the latest light value and running state.
+ */
+class ShareData {
+    public static int light = 0;        // latest light sensor value
+    public static boolean running = true; // controls thread execution
+}
+
 public class LightSensor {
     public static void main(String[] args) {
         // Setup Motors and Sensor
