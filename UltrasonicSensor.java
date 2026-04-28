@@ -19,6 +19,47 @@ class ShareData {
     public static boolean running = true; // controls thread execution
 }
 
+/**
+ * Runnable class for ultrasonic sensor.
+ * Continuously reads distance in a separate thread.
+ */
+class DistanceRunnable implements Runnable {
+    private SampleProvider sp;
+    private float[] sample;
+
+    /**
+     * Constructor for DistanceRunnable.
+     * @param sp SampleProvider for ultrasonic sensor
+     */
+    public DistanceRunnable(SampleProvider sp) {
+        this.sp = sp;
+        this.sample = new float[sp.sampleSize()];
+    }
+
+    /**
+     * Continuously updates distance value.
+     */
+    @Override
+    public void run() {
+        while (ShareData.running) {
+
+            sp.fetchSample(sample, 0);
+
+            // Simple synchronization (lock) when writing shared data
+            synchronized (ShareData.class) {
+                ShareData.distance = sample[0];
+            }
+
+            try {
+                Thread.sleep(30); // small delay to prevent echo interference
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
+
 public class UltrasonicSensor {
 
     public static void main(String[] args) {
