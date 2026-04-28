@@ -6,10 +6,18 @@ import lejos.hardware.port.SensorPort;
 import lejos.hardware.lcd.LCD;
 import lejos.hardware.Button;
 import lejos.hardware.Sound;
-import lejos.robotics.SampleProvider;   // allows the sensor to return the samples or data
+import lejos.robotics.SampleProvider;   
 import lejos.utility.Delay;
-// e.g., for getting distance data from sonic sensor etc
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
+
+/**
+ * Shared data class for communication between threads.
+ * Stores distance value and running state.
+ */
+class ShareData {
+    public static float distance = 0;   // latest distance reading
+    public static boolean running = true; // controls thread execution
+}
 
 public class UltrasonicSensor {
 
