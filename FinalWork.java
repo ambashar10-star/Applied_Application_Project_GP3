@@ -11,10 +11,13 @@ import lejos.hardware.Sound;
 import lejos.robotics.SampleProvider;
 import lejos.utility.Delay;
 
-// This class stores shared values between threads
+/**
+ * Shared data class for communication between threads.
+ * Stores light intensity and distance values.
+ */
 class ShareData {
-    public static float dist = 0;      
-    public static int light = 0;       
+    public static int light = 0;
+    public static float distance = 0;             
     public static boolean running = true; 
 }
 
