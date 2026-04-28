@@ -47,21 +47,30 @@ class LightRunnable implements Runnable {
     }
 }
 
-class UltrasonicThread extends Thread {
+/**
+ * Runnable class for ultrasonic sensor.
+ * Continuously reads distance values in a separate thread.
+ */
+class DistanceRunnable implements Runnable {
     private SampleProvider sp;
     private float[] sample;
 
-    public UltrasonicThread(SampleProvider sp) {
+    public DistanceRunnable(SampleProvider sp) {
         this.sp = sp;
         sample = new float[sp.sampleSize()];
     }
 
+    @Override
     public void run() {
         // keep updating distance while program is running
         while (ShareData.running) {
-            sp.fetchSample(sample, 0);           
-            ShareData.dist = sample[0];          
-            Delay.msDelay(50);                  
+            
+            sp.fetchSample(sample, 0);
+
+            synchronized (ShareData.class) {
+                ShareData.distance = sample[0];
+            }
+            try { Thread.sleep(30); } catch (InterruptedException e) {}                
         }
     }
 }
