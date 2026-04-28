@@ -18,13 +18,50 @@ class ShareData {
     public static boolean running = true; // controls thread execution
 }
 
+/**
+ * Runnable class for reading the light sensor continuously.
+ * This runs in a separate thread so sensor reading does not block the main program.
+ */
+class LightRunnable implements Runnable {
+    private SampleProvider sp;
+    private float[] sample;
+
+    /**
+     * Constructor for LightRunnable.
+     * @param sp SampleProvider for the light sensor
+     */
+    public LightRunnable(SampleProvider sp) {
+        this.sp = sp;
+        this.sample = new float[sp.sampleSize()];
+    }
+
+    /**
+     * Continuously reads light sensor values and updates shared data.
+     */
+    @Override
+    public void run() {
+        while (ShareData.running) {
+
+            sp.fetchSample(sample, 0);
+
+            // Simple synchronization (lock) when writing shared data
+            synchronized (ShareData.class) {
+                ShareData.light = (int)(sample[0] * 100);
+            }
+
+            try { Thread.sleep(10); } catch (InterruptedException e) {}
+        }
+    }
+}
+
+
 public class LightSensor {
     public static void main(String[] args) {
         // Setup Motors and Sensor
         EV3LargeRegulatedMotor leftMotor = new EV3LargeRegulatedMotor(MotorPort.A);
         EV3LargeRegulatedMotor rightMotor = new EV3LargeRegulatedMotor(MotorPort.B);
         EV3ColorSensor colorSensor = new EV3ColorSensor(SensorPort.S4);
-
+        
         // getRedMode
         SampleProvider light = colorSensor.getRedMode();
         float[] sample = new float[light.sampleSize()];
