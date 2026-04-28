@@ -21,7 +21,32 @@ class ShareData {
     public static boolean running = true; 
 }
 
-// Thread for ultrasonic sensor (distance)
+/**
+ * Runnable class for light sensor.
+ * Continuously reads light values in a separate thread.
+ */
+class LightRunnable implements Runnable {
+    private SampleProvider sp;
+    private float[] sample;
+
+    public LightRunnable(SampleProvider sp) {
+        this.sp = sp;
+        sample = new float[sp.sampleSize()];
+    }
+    @Override
+    public void run() {
+        // keep updating light value
+        while (ShareData.running) {
+            
+            sp.fetchSample(sample, 0);
+            synchronized (ShareData.class) {
+                ShareData.light = (int)(sample[0] * 100);
+            }
+            try { Thread.sleep(10); } catch (InterruptedException e) {}
+        }
+    }
+}
+
 class UltrasonicThread extends Thread {
     private SampleProvider sp;
     private float[] sample;
@@ -37,26 +62,6 @@ class UltrasonicThread extends Thread {
             sp.fetchSample(sample, 0);           
             ShareData.dist = sample[0];          
             Delay.msDelay(50);                  
-        }
-    }
-}
-
-// Thread for light sensor
-class LightThread extends Thread {
-    private SampleProvider sp;
-    private float[] sample;
-
-    public LightThread(SampleProvider sp) {
-        this.sp = sp;
-        sample = new float[sp.sampleSize()];
-    }
-
-    public void run() {
-        // keep updating light value
-        while (ShareData.running) {
-            sp.fetchSample(sample, 0);          
-            ShareData.light = (int)(sample[0] * 100); 
-            Delay.msDelay(20);                  
         }
     }
 }
